@@ -197,46 +197,77 @@ class WorkerThread(QThread):
                 self.log_signal.emit(f"⚠️  檢查完畢，總共發現 {dup_count} 組重複/相似的圖片。")
             self.log_signal.emit("="*60 + "\n")
             
-            self.generate_markdown_report(total_files, len(all_images), duplicate_groups)
+            self.generate_html_report(total_files, len(all_images), duplicate_groups)
 
         except Exception as e:
             self.log_signal.emit(f"\n執行中發生錯誤: {e}")
         finally:
             self.finished_signal.emit()
 
-    def generate_markdown_report(self, file_count, image_count, dup_groups):
+    def generate_html_report(self, file_count, image_count, dup_groups):
         report_dir = os.path.join(self.folder_path, "report")
         if not os.path.exists(report_dir):
             os.makedirs(report_dir)
             
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        report_path = os.path.join(report_dir, f"Duplicate_Image_Report_{timestamp}.md")
+        report_path = os.path.join(report_dir, f"Duplicate_Image_Report_{timestamp}.html")
         
+        html_content = f"""<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docx 圖片重複檢測報告</title>
+    <style>
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 1000px; margin: 0 auto; padding: 20px; }}
+        h1 {{ color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
+        h2 {{ color: #2980b9; margin-top: 30px; }}
+        .summary {{ background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #3498db; }}
+        .group {{ background: #fff; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }}
+        .group-title {{ font-size: 1.2em; font-weight: bold; color: #e74c3c; margin-top: 0; margin-bottom: 15px; }}
+        ul {{ list-style-type: none; padding: 0; margin: 0; }}
+        li {{ margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #eee; }}
+        li:last-child {{ margin-bottom: 0; border-bottom: none; padding-bottom: 0; }}
+        .detail-label {{ font-weight: bold; color: #555; display: inline-block; width: 150px; }}
+        .success-msg {{ font-size: 1.2em; color: #27ae60; font-weight: bold; text-align: center; padding: 20px; background: #e8f8f5; border-radius: 8px; }}
+        code {{ background: #f4f4f4; padding: 2px 5px; border-radius: 4px; font-family: monospace; color: #d63031; }}
+    </style>
+</head>
+<body>
+    <h1>Docx 圖片重複檢測報告</h1>
+    <div class="summary">
+        <p><span class="detail-label">產生時間:</span> {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        <p><span class="detail-label">掃描資料夾:</span> <code>{self.folder_path}</code></p>
+        <p><span class="detail-label">相似度閥值:</span> {self.threshold}</p>
+        <p><span class="detail-label">掃描文件數量:</span> {file_count}</p>
+        <p><span class="detail-label">提取圖片數量:</span> {image_count}</p>
+        <p><span class="detail-label">發現重複群組:</span> {len(dup_groups)}</p>
+    </div>
+"""
         with open(report_path, "w", encoding="utf-8") as f:
-            f.write(f"# Docx 圖片重複檢測報告\n\n")
-            f.write(f"**產生時間**: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"**掃描資料夾**: `{self.folder_path}`\n")
-            f.write(f"**相似度閥值**: {self.threshold}\n")
-            f.write(f"\n## 統計摘要\n")
-            f.write(f"- 掃描文件數量: `{file_count}`\n")
-            f.write(f"- 提取圖片數量: `{image_count}`\n")
-            f.write(f"- 發現重複群組: `{len(dup_groups)}`\n\n")
+            f.write(html_content)
             
             if not dup_groups:
-                f.write("🎉 **太棒了！所有的檔案中沒有發現任何重複且相似的圖片。**\n")
+                f.write('    <div class="success-msg">🎉 太棒了！所有的檔案中沒有發現任何重複且相似的圖片。</div>\n')
             else:
-                f.write("## ⚠️ 重複圖片詳細資料\n\n")
+                f.write('    <h2>⚠️ 重複圖片詳細資料</h2>\n')
                 for i, group in enumerate(dup_groups, 1):
-                    f.write(f"### 發現重複群組 #{i} (共 {len(group)} 張高度相似圖片)\n\n")
+                    f.write(f'    <div class="group">\n')
+                    f.write(f'        <div class="group-title">發現重複群組 #{i} (共 {len(group)} 張高度相似圖片)</div>\n')
+                    f.write('        <ul>\n')
                     for img in group:
-                        f.write(f"- **檔案來源**: `{img['filename']}`\n")
-                        f.write(f"  - **所在頁數**: 第 `{img['page']}` 頁\n")
-                        f.write(f"  - **所在章節/位置段落**: {img['context']}\n")
-                        f.write(f"  - **內部資源名稱**: `{img['image_name']}`\n")
-                        f.write(f"  - **特徵雜湊碼**: `{img['hash']}`\n")
-                    f.write("\n---\n\n")
+                        f.write(f'            <li>\n')
+                        f.write(f'                <div><span class="detail-label">檔案來源:</span> <code>{img["filename"]}</code></div>\n')
+                        f.write(f'                <div><span class="detail-label">所在頁數:</span> 第 {img["page"]} 頁</div>\n')
+                        f.write(f'                <div><span class="detail-label">所在節錄:</span> {img["context"]}</div>\n')
+                        f.write(f'                <div><span class="detail-label">內部資源名稱:</span> <code>{img["image_name"]}</code></div>\n')
+                        f.write(f'                <div><span class="detail-label">特徵雜湊碼:</span> <code>{img["hash"]}</code></div>\n')
+                        f.write(f'            </li>\n')
+                    f.write('        </ul>\n')
+                    f.write('    </div>\n')
+            f.write('</body>\n</html>\n')
                     
-        self.log_signal.emit(f"\n[系統提示] 詳細 Markdown 報告已儲存至: \n{report_path}")
+        self.log_signal.emit(f"\n[系統提示] 詳細 HTML 報告已儲存至: \n{report_path}")
 
 
 # --- GUI 應用程式 ---
