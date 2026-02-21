@@ -1,12 +1,13 @@
 [project]
 name = "temp"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.1.1"
+description = "Docx Image Compare and Duplicate Finder"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.10"
 dependencies = [
     "customtkinter>=5.2.2",
     "imagehash>=4.3.2",
     "pillow>=12.1.1",
+    "pyinstaller>=6.19.0",
     "pyqt6>=6.10.2",
 ]
